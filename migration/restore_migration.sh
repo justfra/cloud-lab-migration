@@ -186,6 +186,82 @@ is_port_listening() {
   ss -ltnH | awk '{print $4}' | grep -Eq "(^|.*:|.*\])${port}$"
 }
 
+detect_cloud_provider() {
+  if curl -fsS --max-time 2 "http://169.254.169.254/metadata/v1/id" >/dev/null 2>&1; then
+    printf 'do\n'
+    return 0
+  fi
+
+  if curl -fsS --max-time 2 "http://169.254.169.254/latest/meta-data/instance-id" >/dev/null 2>&1; then
+    printf 'aws\n'
+    return 0
+  fi
+
+  if curl -fsS --max-time 2 "http://169.254.169.254/v1/instanceid" >/dev/null 2>&1; then
+    printf 'vultr\n'
+    return 0
+  fi
+
+  if curl -fsS --max-time 2 "http://169.254.169.254/hetzner/v1/metadata/instance-id" >/dev/null 2>&1; then
+    printf 'hetzner\n'
+    return 0
+  fi
+
+  if curl -fsS --max-time 2 -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/id" >/dev/null 2>&1; then
+    printf 'gce\n'
+    return 0
+  fi
+
+  printf 'unknown\n'
+  return 0
+}
+
+detect_public_ip() {
+  local ip
+  ip="$(curl -fsS --max-time 5 "https://d3qnd54q8gb3je.cloudfront.net/" 2>/dev/null | cut -d',' -f1 || true)"
+  if [[ -n "$ip" ]]; then
+    printf '%s\n' "$ip"
+    return 0
+  fi
+
+  ip="$(curl -fsS --max-time 5 "https://api.ipify.org" 2>/dev/null || true)"
+  if [[ -n "$ip" ]]; then
+    printf '%s\n' "$ip"
+    return 0
+  fi
+
+  printf '\n'
+  return 0
+}
+
+sync_cloudpanel_runtime_identity() {
+  local db="/home/clp/htdocs/app/data/db.sq3"
+  local cloud
+  local public_ip
+
+  if [[ ! -f "$db" ]]; then
+    return 0
+  fi
+
+  if ! command -v sqlite3 >/dev/null 2>&1; then
+    log_warn "sqlite3 not found; skipping CloudPanel runtime identity sync"
+    return 0
+  fi
+
+  cloud="$(detect_cloud_provider)"
+  public_ip="$(detect_public_ip)"
+
+  if [[ "$cloud" != "unknown" ]]; then
+    log_info "Setting CloudPanel cloud provider to '$cloud'"
+    run_cmd sqlite3 "$db" "UPDATE config SET value='${cloud}' WHERE key='cloud';"
+  fi
+
+  if [[ -n "$public_ip" ]]; then
+    log_info "Setting CloudPanel masquerade_address to '$public_ip'"
+    run_cmd sqlite3 "$db" "UPDATE config SET value='${public_ip}' WHERE key='masquerade_address';"
+  fi
+}
+
 prepare_stock_nginx_paths() {
   local conf
   local path
@@ -598,6 +674,7 @@ main() {
   if ((SKIP_HOST_RESTORE == 0)); then
     restore_host_filesystem
     normalize_nginx_permissions
+    sync_cloudpanel_runtime_identity
   fi
 
   restore_docker_volumes
