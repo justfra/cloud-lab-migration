@@ -186,6 +186,41 @@ is_port_listening() {
   ss -ltnH | awk '{print $4}' | grep -Eq "(^|.*:|.*\])${port}$"
 }
 
+prepare_stock_nginx_paths() {
+  local conf
+  local path
+
+  run_cmd mkdir -p /var/log/nginx
+  run_cmd touch /var/log/nginx/access.log /var/log/nginx/error.log
+
+  shopt -s nullglob
+  for conf in /etc/nginx/sites-enabled/*.conf; do
+    while IFS= read -r path; do
+      [[ -n "$path" ]] || continue
+      run_cmd mkdir -p "$path"
+    done < <(awk '
+      $1 == "root" {
+        p=$2
+        gsub(/;$/, "", p)
+        print p
+      }
+    ' "$conf")
+
+    while IFS= read -r path; do
+      [[ -n "$path" ]] || continue
+      run_cmd mkdir -p "$(dirname "$path")"
+      run_cmd touch "$path"
+    done < <(awk '
+      $1 == "access_log" || $1 == "error_log" {
+        p=$2
+        gsub(/;$/, "", p)
+        print p
+      }
+    ' "$conf")
+  done
+  shopt -u nullglob
+}
+
 detect_mariadb_datadir() {
   local datadir=""
   local candidate
@@ -485,6 +520,7 @@ start_services() {
         log_info "Port 80/443 already listening after clp-nginx restart; leaving nginx.service unchanged"
       else
         log_warn "Port 80/443 not listening after clp-nginx restart; starting nginx.service as fallback"
+        prepare_stock_nginx_paths
         run_cmd systemctl enable nginx || true
         run_cmd systemctl restart nginx || true
       fi
