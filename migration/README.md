@@ -31,7 +31,8 @@ These scripts package and restore your mixed stack with CloudPanel kept host-nat
   - `/home/frankie/.opencode` (if present)
   - `/home/frankie/.local/share/opencode` (if present)
   - `/home/frankie/.ssh` (if present)
-  - `/home/frankie/migration`
+  - `/home/frankie/cloud-lab-migration` (if present)
+  - `/home/frankie/migration` (legacy compatibility path, if present)
   - `/home/frankie/docker-compose.yaml`
   - `/home/frankie/.env`
   - `/home/frankie/n8n-config.json`
@@ -134,6 +135,11 @@ Restore now enforces a MariaDB version match against the source backup metadata 
 If logical dump restore is not available, restore automatically uses the packaged MariaDB physical snapshot.
 Cloud provider and public IP are auto-detected during restore to update CloudPanel runtime identity (`config.cloud`, `config.masquerade_address`).
 If detection is wrong, override with `--cloud-provider` and `--public-ip`.
+
+CloudPanel + nginx mode note:
+
+- In some restored environments, `clp-nginx` may handle panel traffic (`8443`) while `nginx.service` handles website vhosts on `80/443`.
+- Restore includes fallback logic to start stock `nginx.service` when `80/443` are not listening after `clp-nginx` restart.
 
 By default, payload is persisted under `/opt/vps-migration`.
 

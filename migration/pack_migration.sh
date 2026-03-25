@@ -449,6 +449,7 @@ capture_host_filesystem() {
     "/home/frankie/.opencode"
     "/home/frankie/.local/share/opencode"
     "/home/frankie/.ssh"
+    "/home/frankie/cloud-lab-migration"
     "/home/frankie/migration"
     "/home/frankie/docker-compose.yaml"
     "/home/frankie/.env"

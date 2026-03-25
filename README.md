@@ -32,6 +32,12 @@ sudo ./validate.sh --archive /home/frankie/migration-vps1-YYYYMMDD-HHMMSS.tar.bz
 sudo ./restore.sh --archive /home/frankie/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2 --verbose
 ```
 
+If CloudPanel cloud/IP auto-detection is wrong on target, you can override during restore:
+
+```bash
+sudo ./restore.sh --archive /home/frankie/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2 --cloud-provider do --public-ip <TARGET_PUBLIC_IP> --verbose
+```
+
 Optional standalone mode:
 
 ```bash
