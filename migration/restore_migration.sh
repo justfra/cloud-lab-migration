@@ -522,7 +522,14 @@ start_services() {
         log_warn "Port 80/443 not listening after clp-nginx restart; starting nginx.service as fallback"
         prepare_stock_nginx_paths
         run_cmd systemctl enable nginx || true
-        run_cmd systemctl restart nginx || true
+
+        if ! run_cmd systemctl restart nginx; then
+          if command -v aa-complain >/dev/null 2>&1 && [[ -f /etc/apparmor.d/usr.sbin.nginx ]]; then
+            log_warn "nginx fallback start failed; relaxing AppArmor profile for nginx and retrying"
+            run_cmd aa-complain /etc/apparmor.d/usr.sbin.nginx || true
+            run_cmd systemctl restart nginx || true
+          fi
+        fi
       fi
     fi
   fi
