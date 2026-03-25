@@ -48,6 +48,15 @@ These scripts package and restore your mixed stack with CloudPanel kept host-nat
 - `php` and `sqlite3` available on source host for CloudPanel password decryption fallback.
 - Maintenance window recommended (scripts stop/restart app services for consistency).
 
+## Recommended workflow (Git repo + archive)
+
+1) Clone this repository on both source and target hosts.
+2) Run pack on source to generate a migration archive.
+3) Transfer only the `migration-*.tar.bz2` (+ `.sha256`) to target.
+4) Run restore from the cloned repo on target.
+
+This avoids duplicated script copies and keeps one canonical script source under version control.
+
 ## Pack on source VPS
 
 ```bash
@@ -59,16 +68,16 @@ Output example:
 
 - `/home/frankie/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2`
 - `/home/frankie/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2.sha256`
-- `/home/frankie/migration-kit-vps1-YYYYMMDD-HHMMSS.tar.bz2` (self-contained restore kit)
+Optional (only if you want a standalone bundle):
+
+```bash
+sudo ./pack_migration.sh --output-dir /home/frankie --label vps1 --create-kit --verbose
+```
+
+Then it also creates:
+
+- `/home/frankie/migration-kit-vps1-YYYYMMDD-HHMMSS.tar.bz2`
 - `/home/frankie/migration-kit-vps1-YYYYMMDD-HHMMSS.tar.bz2.sha256`
-
-The portable kit includes:
-
-- the backup archive + checksum
-- the `migration/` restore/validate scripts
-- helper launchers: `run_restore.sh` and `run_validate.sh`
-
-This lets you transfer a single portable kit file, extract it on the new host, then run restore/validation without separately copying scripts.
 
 ## Restore on target VPS
 
@@ -98,7 +107,7 @@ cd /home/frankie/migration
 sudo ./restore_migration.sh --archive /path/to/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2 --verbose
 ```
 
-You can also pass the portable kit directly:
+You can also pass the portable kit directly (if created):
 
 ```bash
 sudo ./restore_migration.sh --archive /path/to/migration-kit-vps1-YYYYMMDD-HHMMSS.tar.bz2 --verbose
@@ -131,6 +140,7 @@ sudo ./validate_migration.sh --archive /path/to/migration-vps1-YYYYMMDD-HHMMSS.t
 
 ## Optional flags
 
+- `--create-kit`: create additional self-contained migration kit archive.
 - `--strict`: fail on optional warnings.
 - `--skip-host-restore`: restore only Docker/data payload, skip host config overwrite.
 - `--skip-db-restore`: skip host MariaDB/Redis restore.

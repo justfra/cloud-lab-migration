@@ -5,6 +5,9 @@ Portable VPS migration toolkit for moving CloudPanel + Docker workloads between 
 ## Repository Layout
 
 - `migration/` - main pack/restore/validate scripts and docs
+- `pack.sh` - root wrapper for pack script
+- `restore.sh` - root wrapper for restore script
+- `validate.sh` - root wrapper for archive validator
 - `run_chatwoot.sh` - helper launcher
 - `run_kestra.sh` - helper launcher
 - `run_n8n.sh` - helper launcher
@@ -12,18 +15,27 @@ Portable VPS migration toolkit for moving CloudPanel + Docker workloads between 
 
 ## Quick Start
 
-Create a migration backup + portable kit on source host:
+Recommended: clone this repo on both source and target hosts, then transfer only backup archives.
+
+Create a migration backup on source host:
 
 ```bash
-sudo ./migration/pack_migration.sh --output-dir /home/frankie --label vps1 --verbose
+sudo ./pack.sh --output-dir /home/frankie --label vps1 --verbose
 ```
 
-On target host, extract the kit and restore:
+On target host (from cloned repo), validate and restore:
 
 ```bash
-tar xjf migration-kit-*.tar.bz2
-sudo ./run_validate.sh
-sudo ./run_restore.sh --verbose
+sudo ./validate.sh --archive /home/frankie/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2 --verbose
+sudo ./restore.sh --archive /home/frankie/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2 --verbose
 ```
+
+Optional standalone mode:
+
+```bash
+sudo ./pack.sh --output-dir /home/frankie --label vps1 --create-kit --verbose
+```
+
+This also creates `migration-kit-*.tar.bz2` if you prefer a single self-contained file.
 
 For full details, see `migration/README.md`.

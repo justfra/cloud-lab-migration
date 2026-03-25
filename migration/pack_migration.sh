@@ -9,6 +9,7 @@ source "$SCRIPT_DIR/lib/common.sh"
 OUTPUT_DIR="$PWD"
 LABEL=""
 KEEP_WORKDIR=0
+CREATE_PORTABLE_KIT=0
 
 CHATWOOT_COMPOSE="/home/frankie/docker-compose.yaml"
 
@@ -50,7 +51,11 @@ print_pack_summary() {
   if ((PORTABLE_KIT_CREATED)); then
     print_status_line "OK" "Portable kit" "$PORTABLE_KIT_PATH"
   else
-    print_status_line "WARN" "Portable kit" "Self-contained restore kit was not created"
+    if ((CREATE_PORTABLE_KIT)); then
+      print_status_line "WARN" "Portable kit" "Self-contained restore kit was not created"
+    else
+      print_status_line "OK" "Portable kit" "Skipped (repo-managed workflow)"
+    fi
   fi
 
   if ((HOST_EXPORT_DONE)); then
@@ -125,7 +130,7 @@ print_restore_prereqs() {
   print_status_line "OK" "Compose plugin note" "Docker Compose plugin is usually installed together with Docker Engine"
   print_status_line "OK" "Source CloudPanel" "${SOURCE_CLOUDPANEL_VERSION}"
   print_status_line "OK" "Source MariaDB" "${SOURCE_MARIADB_VERSION}"
-  print_status_line "OK" "After install" "Run restore from the migration kit; no manual CloudPanel account setup is required for migrated data"
+  print_status_line "OK" "After install" "Run restore using scripts from this git repo or from optional migration kit; no manual CloudPanel account setup is required for migrated data"
 }
 
 create_portable_kit() {
@@ -225,6 +230,7 @@ Usage: pack_migration.sh [options]
 Options:
   --output-dir <path>   Directory where archive will be written (default: current dir)
   --label <name>        Label used in archive filename
+  --create-kit          Also create self-contained migration-kit archive
   --dry-run             Print actions without changing anything
   --verbose             Verbose logs
   --strict              Fail on optional export warnings
@@ -243,6 +249,10 @@ parse_args() {
       --label)
         LABEL="$2"
         shift 2
+        ;;
+      --create-kit)
+        CREATE_PORTABLE_KIT=1
+        shift
         ;;
       --dry-run)
         DRY_RUN=1
@@ -916,9 +926,11 @@ main() {
   run_cmd bash -lc "sha256sum '$ARCHIVE_PATH' > '${ARCHIVE_PATH}.sha256'"
   ARCHIVE_CREATED=1
 
-  if ! create_portable_kit "$label_part" "$pack_ts"; then
-    add_issue "Portable kit creation failed"
-    log_warn "Portable kit creation failed; main archive is still valid"
+  if ((CREATE_PORTABLE_KIT)); then
+    if ! create_portable_kit "$label_part" "$pack_ts"; then
+      add_issue "Portable kit creation failed"
+      log_warn "Portable kit creation failed; main archive is still valid"
+    fi
   fi
 
   resume_services
