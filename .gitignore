@@ -1,0 +1,28 @@
+# Backup artifacts
+*.tar.bz2
+*.tar.bz2.sha256
+*.tar
+*.rdb
+*.sql
+*.sql.gz
+
+# Runtime/staging
+migration_logs/
+tmp/
+.tmp/
+
+# Secrets and local machine state
+.env
+*.env
+n8n-config.json
+id_rsa
+id_rsa.pub
+
+# Large personal directories and machine-specific state
+.opencode/
+.claude/
+.ssh/
+
+# Editor/system
+.DS_Store
+*.swp
