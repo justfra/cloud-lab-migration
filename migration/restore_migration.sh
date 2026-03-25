@@ -181,6 +181,11 @@ systemd_unit_exists() {
   systemctl cat "$unit" >/dev/null 2>&1
 }
 
+is_port_listening() {
+  local port="$1"
+  ss -ltnH | awk '{print $4}' | grep -Eq "(^|.*:|.*\])${port}$"
+}
+
 detect_mariadb_datadir() {
   local datadir=""
   local candidate
@@ -476,9 +481,13 @@ start_services() {
     run_cmd systemctl restart clp-nginx
 
     if systemd_unit_exists nginx.service; then
-      log_info "Disabling stock nginx service in CloudPanel mode"
-      run_cmd systemctl stop nginx || true
-      run_cmd systemctl disable nginx || true
+      if is_port_listening 80 || is_port_listening 443; then
+        log_info "Port 80/443 already listening after clp-nginx restart; leaving nginx.service unchanged"
+      else
+        log_warn "Port 80/443 not listening after clp-nginx restart; starting nginx.service as fallback"
+        run_cmd systemctl enable nginx || true
+        run_cmd systemctl restart nginx || true
+      fi
     fi
   fi
 }
