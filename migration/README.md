@@ -132,6 +132,8 @@ sudo ./restore.sh --archive /path/to/migration-kit-vps1-YYYYMMDD-HHMMSS.tar.bz2 
 
 Restore now enforces a MariaDB version match against the source backup metadata before applying changes.
 If logical dump restore is not available, restore automatically uses the packaged MariaDB physical snapshot.
+Cloud provider and public IP are auto-detected during restore to update CloudPanel runtime identity (`config.cloud`, `config.masquerade_address`).
+If detection is wrong, override with `--cloud-provider` and `--public-ip`.
 
 By default, payload is persisted under `/opt/vps-migration`.
 
@@ -158,6 +160,8 @@ sudo ./validate.sh --archive /path/to/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2 --v
 ## Optional flags
 
 - `--create-kit`: create additional self-contained migration kit archive.
+- `--cloud-provider`: override detected CloudPanel provider id (`do|aws|vultr|hetzner|gce`).
+- `--public-ip`: override detected public IP used for CloudPanel masquerade address.
 - `--strict`: fail on optional warnings.
 - `--skip-host-restore`: restore only Docker/data payload, skip host config overwrite.
 - `--skip-db-restore`: skip host MariaDB/Redis restore.

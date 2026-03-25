@@ -12,6 +12,8 @@ SKIP_HOST_RESTORE=0
 SKIP_DB_RESTORE=0
 START_SERVICES=1
 KEEP_STAGING=0
+FORCE_PUBLIC_IP=""
+FORCE_CLOUD_PROVIDER=""
 
 STAGING_DIR=""
 BUNDLE_PATH=""
@@ -85,6 +87,8 @@ Usage: restore_migration.sh --archive <file.tar.bz2> [options]
 Options:
   --archive <path>      Migration archive to restore (required)
   --target-root <path>  Persistent restore root (default: /opt/vps-migration)
+  --public-ip <ip>      Override detected public IP for CloudPanel masquerade_address
+  --cloud-provider <id> Override detected cloud provider (do|aws|vultr|hetzner|gce)
   --skip-host-restore   Skip restoring host filesystem paths (/etc, /home/clp, etc.)
   --skip-db-restore     Skip host MariaDB/Redis restore
   --no-start            Do not start Docker/Compose services after restore
@@ -105,6 +109,14 @@ parse_args() {
         ;;
       --target-root)
         TARGET_ROOT="$2"
+        shift 2
+        ;;
+      --public-ip)
+        FORCE_PUBLIC_IP="$2"
+        shift 2
+        ;;
+      --cloud-provider)
+        FORCE_CLOUD_PROVIDER="$2"
         shift 2
         ;;
       --skip-host-restore)
@@ -248,8 +260,17 @@ sync_cloudpanel_runtime_identity() {
     return 0
   fi
 
-  cloud="$(detect_cloud_provider)"
-  public_ip="$(detect_public_ip)"
+  if [[ -n "$FORCE_CLOUD_PROVIDER" ]]; then
+    cloud="$FORCE_CLOUD_PROVIDER"
+  else
+    cloud="$(detect_cloud_provider)"
+  fi
+
+  if [[ -n "$FORCE_PUBLIC_IP" ]]; then
+    public_ip="$FORCE_PUBLIC_IP"
+  else
+    public_ip="$(detect_public_ip)"
+  fi
 
   if [[ "$cloud" != "unknown" ]]; then
     log_info "Setting CloudPanel cloud provider to '$cloud'"
