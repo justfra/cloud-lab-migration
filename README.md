@@ -6,6 +6,7 @@ Portable VPS migration toolkit for moving CloudPanel + Docker workloads between 
 
 - `migration/` - main pack/restore/validate scripts and docs
 - `pack.sh` - root wrapper for pack script
+- `preflight.sh` - checks target host prerequisites before restore
 - `restore.sh` - root wrapper for restore script
 - `validate.sh` - root wrapper for archive validator
 - `run_chatwoot.sh` - helper launcher
@@ -26,6 +27,7 @@ sudo ./pack.sh --output-dir /home/frankie --label vps1 --verbose
 On target host (from cloned repo), validate and restore:
 
 ```bash
+sudo ./preflight.sh --archive /home/frankie/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2
 sudo ./validate.sh --archive /home/frankie/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2 --verbose
 sudo ./restore.sh --archive /home/frankie/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2 --verbose
 ```

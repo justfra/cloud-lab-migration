@@ -102,6 +102,12 @@ Docker apt repository note for Ubuntu:
 
 After CloudPanel installation is complete, you can run migration directly. You do not need to manually initialize/create a permanent CloudPanel account for migrated data; restore brings back the source CloudPanel state. If the installer forces first-run onboarding, use a temporary account and proceed with restore.
 
+Run preflight before restore:
+
+```bash
+sudo ../preflight.sh --archive /path/to/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2
+```
+
 ```bash
 cd /home/frankie/migration
 sudo ./restore_migration.sh --archive /path/to/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2 --verbose

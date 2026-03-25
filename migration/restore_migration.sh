@@ -181,6 +181,29 @@ systemd_unit_exists() {
   systemctl cat "$unit" >/dev/null 2>&1
 }
 
+detect_mariadb_datadir() {
+  local datadir=""
+  local candidate
+
+  for candidate in /etc/mysql/mariadb.conf.d/*.cnf /etc/mysql/conf.d/*.cnf /etc/mysql/my.cnf /etc/mysql/mariadb.cnf; do
+    [[ -f "$candidate" ]] || continue
+    datadir="$(awk -F'=' '
+      /^[[:space:]]*datadir[[:space:]]*=/ {
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2)
+        gsub(/["\047]/, "", $2)
+        print $2
+      }
+    ' "$candidate" | tail -n1)"
+    if [[ -n "$datadir" ]]; then
+      printf '%s\n' "$datadir"
+      return 0
+    fi
+  done
+
+  printf '/var/lib/mysql\n'
+  return 0
+}
+
 check_mariadb_version_match() {
   local version_file="$1"
 
@@ -213,7 +236,16 @@ check_mariadb_version_match() {
   fi
 
   if [[ "$installed" != "$expected" ]]; then
-    die "MariaDB version mismatch. Expected '$expected' from backup, found '$installed' on target host."
+    local expected_mm installed_mm
+    expected_mm="$(printf '%s\n' "$expected" | sed -E 's/^([0-9]+\.[0-9]+)\..*/\1/')"
+    installed_mm="$(printf '%s\n' "$installed" | sed -E 's/^([0-9]+\.[0-9]+)\..*/\1/')"
+
+    if [[ -n "$expected_mm" && -n "$installed_mm" && "$expected_mm" == "$installed_mm" ]]; then
+      log_warn "MariaDB patch version differs (expected '$expected', installed '$installed'). Continuing because major.minor matches ($expected_mm)."
+      return 0
+    fi
+
+    die "MariaDB version mismatch. Expected '$expected' from backup, found '$installed' on target host. Install MariaDB $expected_mm.x (or exact $expected) and retry restore."
   fi
 
   log_info "MariaDB version check passed: $installed"
@@ -262,8 +294,18 @@ restore_host_filesystem() {
 
   if [[ -f "$existing_list" ]]; then
     mapfile -t existing_paths <"$existing_list"
-    if [[ ${#existing_paths[@]} -gt 0 ]]; then
-      run_cmd tar -cpf "$backup_dir/host-pre-restore.tar" --absolute-names "${existing_paths[@]}"
+    local local_existing=()
+    local p
+    for p in "${existing_paths[@]}"; do
+      if [[ -e "$p" ]]; then
+        local_existing+=("$p")
+      fi
+    done
+
+    if [[ ${#local_existing[@]} -gt 0 ]]; then
+      run_cmd tar -cpf "$backup_dir/host-pre-restore.tar" --absolute-names "${local_existing[@]}"
+    else
+      log_warn "No matching local paths found for pre-restore host backup on this target"
     fi
   fi
 
@@ -292,6 +334,7 @@ restore_host_databases() {
     local was_active=0
     local backup_dir="/var/backups/vps-migration"
     local backup_tar="$backup_dir/mariadb-pre-restore-$(timestamp).tar"
+    local datadir
 
     if ! systemd_unit_exists mariadb.service; then
       log_warn "MariaDB service not found; cannot restore physical snapshot"
@@ -300,17 +343,22 @@ restore_host_databases() {
 
     run_cmd mkdir -p "$backup_dir"
 
+    datadir="$(detect_mariadb_datadir)"
+    [[ -n "$datadir" ]] || datadir="/var/lib/mysql"
+
     if systemctl is-active --quiet mariadb; then
       was_active=1
       run_cmd systemctl stop mariadb
     fi
 
-    if [[ -d /var/lib/mysql || -d /etc/mysql ]]; then
-      run_cmd tar -cpf "$backup_tar" --absolute-names /var/lib/mysql /etc/mysql
+    if [[ -d "$datadir" || -d /etc/mysql ]]; then
+      run_cmd tar -cpf "$backup_tar" --absolute-names "$datadir" /etc/mysql
     fi
 
     run_cmd tar -xpf "$mariadb_physical" --absolute-names
-    run_cmd chown -R mysql:mysql /var/lib/mysql
+    if [[ -d "$datadir" ]]; then
+      run_cmd chown -R mysql:mysql "$datadir"
+    fi
 
     if ((was_active)); then
       run_cmd systemctl start mariadb
