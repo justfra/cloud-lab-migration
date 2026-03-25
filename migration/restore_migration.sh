@@ -313,6 +313,29 @@ restore_host_filesystem() {
   HOST_RESTORE_DONE=1
 }
 
+normalize_nginx_permissions() {
+  if [[ -d /home/clp ]]; then
+    log_info "Ensuring CloudPanel base directories are traversable"
+    run_cmd chmod 755 /home/clp
+  fi
+
+  if [[ -d /home/clp/services ]]; then
+    run_cmd chmod 755 /home/clp/services
+  fi
+
+  if [[ -d /etc/nginx ]]; then
+    log_info "Normalizing /etc/nginx permissions for readability"
+    run_cmd find /etc/nginx -type d -exec chmod 755 {} +
+    run_cmd find /etc/nginx -type f -exec chmod 644 {} +
+  fi
+
+  if [[ -d /home/clp/services/nginx ]]; then
+    log_info "Normalizing /home/clp/services/nginx permissions for readability"
+    run_cmd find /home/clp/services/nginx -type d -exec chmod 755 {} +
+    run_cmd find /home/clp/services/nginx -type f -exec chmod 644 {} +
+  fi
+}
+
 restore_host_databases() {
   local db_dir="$TARGET_ROOT/exports/databases"
   local mariadb_dump="$db_dir/mariadb-all.sql.gz"
@@ -321,9 +344,12 @@ restore_host_databases() {
 
   restore_mariadb_logical() {
     if command -v mysql >/dev/null 2>&1 && systemctl is-active --quiet mariadb; then
-      run_cmd bash -lc "gunzip -c '$mariadb_dump' | mysql"
-      DB_RESTORE_METHOD="logical"
-      return 0
+      if run_cmd bash -lc "set -o pipefail; gunzip -c '$mariadb_dump' | mysql"; then
+        DB_RESTORE_METHOD="logical"
+        return 0
+      fi
+      log_warn "MariaDB logical restore command failed"
+      return 1
     fi
 
     log_warn "Skipping MariaDB logical restore (mysql missing or mariadb inactive)"
@@ -444,6 +470,17 @@ start_services() {
     fi
     run_cmd docker compose -f "$runtime_dir/kestra.compose.yaml" up -d --quiet-pull
   fi
+
+  if systemd_unit_exists clp-nginx.service; then
+    log_info "Restarting CloudPanel nginx service"
+    run_cmd systemctl restart clp-nginx
+
+    if systemd_unit_exists nginx.service; then
+      log_info "Disabling stock nginx service in CloudPanel mode"
+      run_cmd systemctl stop nginx || true
+      run_cmd systemctl disable nginx || true
+    fi
+  fi
 }
 
 on_exit() {
@@ -502,6 +539,7 @@ main() {
 
   if ((SKIP_HOST_RESTORE == 0)); then
     restore_host_filesystem
+    normalize_nginx_permissions
   fi
 
   restore_docker_volumes
