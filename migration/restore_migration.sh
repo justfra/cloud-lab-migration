@@ -354,6 +354,12 @@ restore_host_filesystem() {
 }
 
 normalize_nginx_permissions() {
+  if id clp >/dev/null 2>&1 && [[ -d /home/clp ]]; then
+    log_info "Normalizing /home/clp ownership for CloudPanel runtime"
+    run_cmd chown -R clp:clp /home/clp
+    run_cmd find /home/clp -type d -exec chmod u+rwx,go+rx {} +
+  fi
+
   if [[ -d /home/clp ]]; then
     log_info "Ensuring CloudPanel base directories are traversable"
     run_cmd chmod 755 /home/clp
