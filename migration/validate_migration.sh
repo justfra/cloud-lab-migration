@@ -257,6 +257,26 @@ validate_required_payload() {
     warn ".claude was not present on source host at pack time"
   fi
 
+  if [[ -f "$host_existing" ]] && grep -Fxq '/home/frankie/.claude.json' "$host_existing"; then
+    if grep -Eq '(^|/)home/frankie/\.claude\.json$' "$host_listing"; then
+      pass ".claude.json captured in host paths tar"
+    else
+      fail ".claude.json expected but not found in host paths tar"
+    fi
+  else
+    warn ".claude.json was not present on source host at pack time"
+  fi
+
+  if [[ -f "$host_existing" ]] && grep -Fxq '/home/frankie/.config/opencode' "$host_existing"; then
+    if grep -Eq '(^|/)home/frankie/\.config/opencode(/|$)' "$host_listing"; then
+      pass ".config/opencode captured in host paths tar"
+    else
+      fail ".config/opencode expected but not found in host paths tar"
+    fi
+  else
+    warn ".config/opencode was not present on source host at pack time"
+  fi
+
   if [[ -f "$host_existing" ]] && grep -Fxq '/home/frankie/.ssh' "$host_existing"; then
     if grep -Eq '(^|/)home/frankie/\.ssh(/|$)' "$host_listing"; then
       pass ".ssh captured in host paths tar"
@@ -265,6 +285,16 @@ validate_required_payload() {
     fi
   else
     warn ".ssh was not present on source host at pack time"
+  fi
+
+  if [[ -f "$host_existing" ]] && grep -Fxq '/home/frankie/.local/share/opencode' "$host_existing"; then
+    if grep -Eq '(^|/)home/frankie/\.local/share/opencode(/|$)' "$host_listing"; then
+      pass ".local/share/opencode captured in host paths tar"
+    else
+      fail ".local/share/opencode expected but not found in host paths tar"
+    fi
+  else
+    warn ".local/share/opencode was not present on source host at pack time"
   fi
 
   if grep -Eq '(^|/)home/frankie/migration(/|$)' "$host_listing"; then

@@ -26,7 +26,10 @@ These scripts package and restore your mixed stack with CloudPanel kept host-nat
   - `/usr/lib/systemd/system/nginx.service`
   - `/home/clp`
   - `/home/frankie/.claude` (if present)
+  - `/home/frankie/.claude.json` (if present)
+  - `/home/frankie/.config/opencode` (if present)
   - `/home/frankie/.opencode` (if present)
+  - `/home/frankie/.local/share/opencode` (if present)
   - `/home/frankie/.ssh` (if present)
   - `/home/frankie/migration`
   - `/home/frankie/docker-compose.yaml`
@@ -57,11 +60,18 @@ These scripts package and restore your mixed stack with CloudPanel kept host-nat
 
 This avoids duplicated script copies and keeps one canonical script source under version control.
 
+Canonical entrypoints from repo root:
+
+- `./pack.sh`
+- `./preflight.sh`
+- `./validate.sh`
+- `./restore.sh`
+
 ## Pack on source VPS
 
 ```bash
-cd /home/frankie/migration
-sudo ./pack_migration.sh --output-dir /home/frankie --label vps1 --verbose
+cd /home/frankie/cloud-lab-migration
+sudo ./pack.sh --output-dir /home/frankie --label vps1 --verbose
 ```
 
 Output example:
@@ -71,7 +81,7 @@ Output example:
 Optional (only if you want a standalone bundle):
 
 ```bash
-sudo ./pack_migration.sh --output-dir /home/frankie --label vps1 --create-kit --verbose
+sudo ./pack.sh --output-dir /home/frankie --label vps1 --create-kit --verbose
 ```
 
 Then it also creates:
@@ -105,18 +115,19 @@ After CloudPanel installation is complete, you can run migration directly. You d
 Run preflight before restore:
 
 ```bash
-sudo ../preflight.sh --archive /path/to/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2
+cd /home/frankie/cloud-lab-migration
+sudo ./preflight.sh --archive /path/to/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2
 ```
 
 ```bash
-cd /home/frankie/migration
-sudo ./restore_migration.sh --archive /path/to/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2 --verbose
+cd /home/frankie/cloud-lab-migration
+sudo ./restore.sh --archive /path/to/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2 --verbose
 ```
 
 You can also pass the portable kit directly (if created):
 
 ```bash
-sudo ./restore_migration.sh --archive /path/to/migration-kit-vps1-YYYYMMDD-HHMMSS.tar.bz2 --verbose
+sudo ./restore.sh --archive /path/to/migration-kit-vps1-YYYYMMDD-HHMMSS.tar.bz2 --verbose
 ```
 
 Restore now enforces a MariaDB version match against the source backup metadata before applying changes.
@@ -129,19 +140,19 @@ By default, payload is persisted under `/opt/vps-migration`.
 - Dry-run pack:
 
 ```bash
-sudo ./pack_migration.sh --dry-run --verbose
+sudo ./pack.sh --dry-run --verbose
 ```
 
 - Dry-run restore:
 
 ```bash
-sudo ./restore_migration.sh --archive /path/to/file.tar.bz2 --dry-run --verbose
+sudo ./restore.sh --archive /path/to/file.tar.bz2 --dry-run --verbose
 ```
 
 - Validation only (backup archive):
 
 ```bash
-sudo ./validate_migration.sh --archive /path/to/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2 --verbose
+sudo ./validate.sh --archive /path/to/migration-vps1-YYYYMMDD-HHMMSS.tar.bz2 --verbose
 ```
 
 ## Optional flags
@@ -158,7 +169,7 @@ After a successful non-dry-run pack, `pack_migration.sh` asks:
 
 - `Run validation now? [Y/n]`
 
-If you answer yes, it runs `validate_migration.sh --verbose` automatically.
+If you answer yes, it runs `validate_migration.sh --archive <newly-created-archive> --verbose` automatically.
 If no archive is provided, validator uses the latest `/home/frankie/migration-*.tar.bz2`.
 
 ## Notes

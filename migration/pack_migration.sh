@@ -353,7 +353,7 @@ resume_services() {
   log_info "Resuming services that were previously running"
 
   if ((CHATWOOT_WAS_RUNNING)) && [[ -f "$CHATWOOT_COMPOSE" ]]; then
-    run_cmd docker compose -f "$CHATWOOT_COMPOSE" up -d || true
+    run_cmd docker compose -f "$CHATWOOT_COMPOSE" up -d --quiet-pull || true
   fi
 
   resume_n8n_if_needed
@@ -444,7 +444,10 @@ capture_host_filesystem() {
     "/usr/lib/systemd/system/nginx.service"
     "/home/clp"
     "/home/frankie/.claude"
+    "/home/frankie/.claude.json"
+    "/home/frankie/.config/opencode"
     "/home/frankie/.opencode"
+    "/home/frankie/.local/share/opencode"
     "/home/frankie/.ssh"
     "/home/frankie/migration"
     "/home/frankie/docker-compose.yaml"

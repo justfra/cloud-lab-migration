@@ -424,7 +424,7 @@ start_services() {
 
   if [[ -f /home/frankie/docker-compose.yaml ]]; then
     log_info "Starting Chatwoot compose stack"
-    run_cmd docker compose -f /home/frankie/docker-compose.yaml up -d
+    run_cmd docker compose -f /home/frankie/docker-compose.yaml up -d --quiet-pull
   else
     log_warn "Chatwoot compose file missing at /home/frankie/docker-compose.yaml"
   fi
@@ -434,7 +434,7 @@ start_services() {
     if container_exists n8n; then
       run_cmd docker rm -f n8n
     fi
-    run_cmd docker compose -f "$runtime_dir/n8n.compose.yaml" up -d
+    run_cmd docker compose -f "$runtime_dir/n8n.compose.yaml" up -d --quiet-pull
   fi
 
   if [[ -f "$runtime_dir/kestra.compose.yaml" ]]; then
@@ -442,7 +442,7 @@ start_services() {
     if container_exists kestra; then
       run_cmd docker rm -f kestra
     fi
-    run_cmd docker compose -f "$runtime_dir/kestra.compose.yaml" up -d
+    run_cmd docker compose -f "$runtime_dir/kestra.compose.yaml" up -d --quiet-pull
   fi
 }
 
