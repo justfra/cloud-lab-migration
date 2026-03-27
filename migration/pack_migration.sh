@@ -12,12 +12,14 @@ KEEP_WORKDIR=0
 CREATE_PORTABLE_KIT=0
 
 CHATWOOT_COMPOSE="/home/frankie/docker-compose.yaml"
+SHARED_SERVICES_COMPOSE="/home/frankie/shared-services/docker-compose.yaml"
 
 WORK_DIR=""
 BUNDLE_DIR=""
 ARCHIVE_PATH=""
 
 CHATWOOT_WAS_RUNNING=0
+SHARED_SERVICES_WAS_RUNNING=0
 N8N_WAS_RUNNING=0
 KESTRA_WAS_RUNNING=0
 RESUMED=0
@@ -352,6 +354,10 @@ resume_services() {
 
   log_info "Resuming services that were previously running"
 
+  if ((SHARED_SERVICES_WAS_RUNNING)) && [[ -f "$SHARED_SERVICES_COMPOSE" ]]; then
+    run_cmd docker compose -f "$SHARED_SERVICES_COMPOSE" up -d --quiet-pull || true
+  fi
+
   if ((CHATWOOT_WAS_RUNNING)) && [[ -f "$CHATWOOT_COMPOSE" ]]; then
     run_cmd docker compose -f "$CHATWOOT_COMPOSE" up -d --quiet-pull || true
   fi
@@ -454,6 +460,7 @@ capture_host_filesystem() {
     "/home/frankie/docker-compose.yaml"
     "/home/frankie/.env"
     "/home/frankie/n8n-config.json"
+    "/home/frankie/shared-services"
   )
 
   local script_path
@@ -731,6 +738,40 @@ capture_database_dumps() {
   fi
 }
 
+capture_shared_postgres_dumps() {
+  local db_dir="$BUNDLE_DIR/exports/databases"
+  mkdir -p "$db_dir"
+
+  if [[ ! -f "$SHARED_SERVICES_COMPOSE" ]]; then
+    log_warn "Shared postgres compose file not found at $SHARED_SERVICES_COMPOSE"
+    return 0
+  fi
+
+  local container_name
+  container_name="$(docker compose -f "$SHARED_SERVICES_COMPOSE" ps -q shared-postgres 2>/dev/null || true)"
+  if [[ -z "$container_name" ]]; then
+    log_warn "Shared postgres container not running; skipping logical dumps"
+    add_issue "Shared postgres logical dumps skipped (container not running)"
+    return 0
+  fi
+
+  local db
+  for db in ai_receptionist bella_tavola rechago; do
+    log_info "Dumping shared-postgres database: $db"
+    if docker exec "$container_name" pg_dump -U postgres -d "$db" -Fc -f "/tmp/${db}.dump" 2>/dev/null; then
+      if docker cp "${container_name}:/tmp/${db}.dump" "$db_dir/shared-pg-${db}.dump"; then
+        log_info "  → shared-pg-${db}.dump captured"
+      else
+        log_warn "  → docker cp failed for $db"
+        add_issue "Shared postgres docker cp failed for $db"
+      fi
+    else
+      log_warn "  → pg_dump failed for $db"
+      add_issue "Shared postgres pg_dump failed for $db"
+    fi
+  done
+}
+
 capture_database_version_metadata() {
   local md="$BUNDLE_DIR/metadata"
   mkdir -p "$md"
@@ -875,6 +916,10 @@ main() {
     CHATWOOT_WAS_RUNNING=1
   fi
 
+  if [[ -f "$SHARED_SERVICES_COMPOSE" ]] && docker compose -f "$SHARED_SERVICES_COMPOSE" ps --status running --quiet | grep -q .; then
+    SHARED_SERVICES_WAS_RUNNING=1
+  fi
+
   if is_container_running n8n; then
     N8N_WAS_RUNNING=1
   fi
@@ -885,9 +930,15 @@ main() {
 
   write_runtime_compose_files
 
+  # Capture shared postgres logical dumps BEFORE stopping (container must be running)
+  capture_shared_postgres_dumps
+
   log_info "Stopping app services for consistent snapshot"
   if ((CHATWOOT_WAS_RUNNING)); then
     run_cmd docker compose -f "$CHATWOOT_COMPOSE" stop
+  fi
+  if ((SHARED_SERVICES_WAS_RUNNING)); then
+    run_cmd docker compose -f "$SHARED_SERVICES_COMPOSE" stop
   fi
   if ((N8N_WAS_RUNNING)); then
     run_cmd docker stop n8n
@@ -906,6 +957,8 @@ main() {
   export_volume frankie_storage_data
   export_volume n8n_data
   export_volume kestra_data
+  export_volume shared_postgres_data
+  export_volume shared_redis_data
   export_kestra_app_data
 
   write_manifest_and_checksums

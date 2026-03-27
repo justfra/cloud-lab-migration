@@ -591,6 +591,22 @@ restore_host_databases() {
 start_services() {
   local runtime_dir="$TARGET_ROOT/exports/runtime"
 
+  # Start shared PostgreSQL first (other projects depend on it)
+  if [[ -f /home/frankie/shared-services/docker-compose.yaml ]]; then
+    log_info "Starting shared services compose stack (PostgreSQL + Redis)"
+    run_cmd docker compose -f /home/frankie/shared-services/docker-compose.yaml up -d --quiet-pull
+    local pg_retries=0
+    while ! docker compose -f /home/frankie/shared-services/docker-compose.yaml exec -T shared-postgres pg_isready -U postgres -q 2>/dev/null; do
+      pg_retries=$((pg_retries + 1))
+      if [[ $pg_retries -ge 30 ]]; then
+        log_warn "Shared postgres did not become ready in 30 seconds"
+        add_issue "Shared postgres startup timeout"
+        break
+      fi
+      sleep 1
+    done
+  fi
+
   if [[ -f /home/frankie/docker-compose.yaml ]]; then
     log_info "Starting Chatwoot compose stack"
     run_cmd docker compose -f /home/frankie/docker-compose.yaml up -d --quiet-pull
