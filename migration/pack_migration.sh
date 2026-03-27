@@ -756,7 +756,7 @@ capture_shared_postgres_dumps() {
   fi
 
   local db
-  for db in ai_receptionist bella_tavola rechago; do
+  for db in ai_receptionist bella_tavola rechago telnyx_voice_adapter; do
     log_info "Dumping shared-postgres database: $db"
     if docker exec "$container_name" pg_dump -U postgres -d "$db" -Fc -f "/tmp/${db}.dump" 2>/dev/null; then
       if docker cp "${container_name}:/tmp/${db}.dump" "$db_dir/shared-pg-${db}.dump"; then
