@@ -9,15 +9,24 @@ These scripts package and restore your mixed stack with CloudPanel kept host-nat
 - `validate_migration.sh`: validates backup archive integrity and required payload contents.
 - `lib/common.sh`: shared logging and runtime helpers.
 
+## Configuration
+
+Both `pack_migration.sh` and `restore_migration.sh` use a `BASE_DIR` variable (default: `/home/frankie`) for all user-directory paths. Change this single variable if the deployment moves to a different directory.
+
 ## What gets captured
 
 - Docker volumes (if present):
-  - `frankie_postgres_data`
-  - `frankie_redis_data`
-  - `frankie_storage_data`
+  - `frankie_postgres_data` (Chatwoot PostgreSQL)
+  - `frankie_redis_data` (Chatwoot Redis)
+  - `frankie_storage_data` (Chatwoot file storage)
+  - `shared_postgres_data` (shared PostgreSQL for chatbot, orders, rechago, telnyx voice)
+  - `shared_redis_data` (shared Redis for orders, rechago)
   - `n8n_data`
   - `kestra_data`
   - `kestra_app_data` (exported from `kestra:/app/data`)
+- Shared PostgreSQL logical backups (pg_dump):
+  - `ai_receptionist`, `bella_tavola`, `rechago`, `telnyx_voice_adapter`
+  - Saved as `shared-pg-{db}.dump` in `exports/databases/`
 - Host filesystem/config snapshots:
   - `/etc/nginx`
   - `/etc/systemd/system`
@@ -25,18 +34,27 @@ These scripts package and restore your mixed stack with CloudPanel kept host-nat
   - `/usr/lib/systemd/system/clp-nginx.service`
   - `/usr/lib/systemd/system/nginx.service`
   - `/home/clp`
-  - `/home/frankie/.claude` (if present)
-  - `/home/frankie/.claude.json` (if present)
-  - `/home/frankie/.config/opencode` (if present)
-  - `/home/frankie/.opencode` (if present)
-  - `/home/frankie/.local/share/opencode` (if present)
-  - `/home/frankie/.ssh` (if present)
-  - `/home/frankie/cloud-lab-migration` (if present)
-  - `/home/frankie/migration` (legacy compatibility path, if present)
-  - `/home/frankie/docker-compose.yaml`
-  - `/home/frankie/.env`
-  - `/home/frankie/n8n-config.json`
-  - `/home/frankie/*.sh` (top-level scripts, if present)
+  - `$BASE_DIR/.claude` (if present)
+  - `$BASE_DIR/.claude.json` (if present)
+  - `$BASE_DIR/.config/opencode` (if present)
+  - `$BASE_DIR/.opencode` (if present)
+  - `$BASE_DIR/.local/share/opencode` (if present)
+  - `$BASE_DIR/.ssh` (if present)
+  - `$BASE_DIR/cloud-lab-migration` (if present)
+  - `$BASE_DIR/migration` (legacy compatibility path, if present)
+  - `$BASE_DIR/docker-compose.yaml` (Chatwoot)
+  - `$BASE_DIR/.env` (Chatwoot)
+  - `$BASE_DIR/n8n-config.json`
+  - `$BASE_DIR/shared-services/` (shared PostgreSQL + Redis compose)
+  - `$BASE_DIR/*.sh` (top-level scripts, if present)
+- Project .env files (gitignored, not recoverable from repos):
+  - `$BASE_DIR/chatwoot_langgraph_chatbot/.env`
+  - `$BASE_DIR/chatwoot_langgraph_chatbot_orders/.env`
+  - `$BASE_DIR/chatwoot_telnyx_voice_integration/.env`
+  - `$BASE_DIR/rechago/.env`
+  - `$BASE_DIR/rechago/apps/public-api/.env`
+  - `$BASE_DIR/rechago/apps/webhook-stripe/.env`
+  - `$BASE_DIR/rechago/apps/worker-fulfilment/.env`
 - Host DB backups (resilient):
   - MariaDB logical dump (socket auth first, then CloudPanel credential decryption fallback)
   - MariaDB physical snapshot fallback (`/var/lib/mysql` + `/etc/mysql`) when logical dump is unavailable

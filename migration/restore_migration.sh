@@ -6,6 +6,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
 source "$SCRIPT_DIR/lib/common.sh"
 
+BASE_DIR="/home/frankie"
+
 ARCHIVE_PATH=""
 TARGET_ROOT="/opt/vps-migration"
 SKIP_HOST_RESTORE=0
@@ -592,11 +594,11 @@ start_services() {
   local runtime_dir="$TARGET_ROOT/exports/runtime"
 
   # Start shared PostgreSQL first (other projects depend on it)
-  if [[ -f /home/frankie/shared-services/docker-compose.yaml ]]; then
+  if [[ -f "$BASE_DIR/shared-services/docker-compose.yaml" ]]; then
     log_info "Starting shared services compose stack (PostgreSQL + Redis)"
-    run_cmd docker compose -f /home/frankie/shared-services/docker-compose.yaml up -d --quiet-pull
+    run_cmd docker compose -f "$BASE_DIR/shared-services/docker-compose.yaml" up -d --quiet-pull
     local pg_retries=0
-    while ! docker compose -f /home/frankie/shared-services/docker-compose.yaml exec -T shared-postgres pg_isready -U postgres -q 2>/dev/null; do
+    while ! docker compose -f "$BASE_DIR/shared-services/docker-compose.yaml" exec -T shared-postgres pg_isready -U postgres -q 2>/dev/null; do
       pg_retries=$((pg_retries + 1))
       if [[ $pg_retries -ge 30 ]]; then
         log_warn "Shared postgres did not become ready in 30 seconds"
@@ -607,11 +609,11 @@ start_services() {
     done
   fi
 
-  if [[ -f /home/frankie/docker-compose.yaml ]]; then
+  if [[ -f "$BASE_DIR/docker-compose.yaml" ]]; then
     log_info "Starting Chatwoot compose stack"
-    run_cmd docker compose -f /home/frankie/docker-compose.yaml up -d --quiet-pull
+    run_cmd docker compose -f "$BASE_DIR/docker-compose.yaml" up -d --quiet-pull
   else
-    log_warn "Chatwoot compose file missing at /home/frankie/docker-compose.yaml"
+    log_warn "Chatwoot compose file missing at $BASE_DIR/docker-compose.yaml"
   fi
 
   if [[ -f "$runtime_dir/n8n.compose.yaml" ]]; then
@@ -678,7 +680,7 @@ on_exit() {
 main() {
   parse_args "$@"
 
-  init_logging "/home/frankie/migration_logs/restore-$(timestamp).log"
+  init_logging "$BASE_DIR/migration_logs/restore-$(timestamp).log"
   trap 'on_exit $?' EXIT
 
   ensure_root

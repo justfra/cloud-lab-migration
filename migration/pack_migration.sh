@@ -11,8 +11,10 @@ LABEL=""
 KEEP_WORKDIR=0
 CREATE_PORTABLE_KIT=0
 
-CHATWOOT_COMPOSE="/home/frankie/docker-compose.yaml"
-SHARED_SERVICES_COMPOSE="/home/frankie/shared-services/docker-compose.yaml"
+BASE_DIR="/home/frankie"
+
+CHATWOOT_COMPOSE="$BASE_DIR/docker-compose.yaml"
+SHARED_SERVICES_COMPOSE="$BASE_DIR/shared-services/docker-compose.yaml"
 
 WORK_DIR=""
 BUNDLE_DIR=""
@@ -449,22 +451,29 @@ capture_host_filesystem() {
     "/usr/lib/systemd/system/clp-nginx.service"
     "/usr/lib/systemd/system/nginx.service"
     "/home/clp"
-    "/home/frankie/.claude"
-    "/home/frankie/.claude.json"
-    "/home/frankie/.config/opencode"
-    "/home/frankie/.opencode"
-    "/home/frankie/.local/share/opencode"
-    "/home/frankie/.ssh"
-    "/home/frankie/cloud-lab-migration"
-    "/home/frankie/migration"
-    "/home/frankie/docker-compose.yaml"
-    "/home/frankie/.env"
-    "/home/frankie/n8n-config.json"
-    "/home/frankie/shared-services"
+    "$BASE_DIR/.claude"
+    "$BASE_DIR/.claude.json"
+    "$BASE_DIR/.config/opencode"
+    "$BASE_DIR/.opencode"
+    "$BASE_DIR/.local/share/opencode"
+    "$BASE_DIR/.ssh"
+    "$BASE_DIR/cloud-lab-migration"
+    "$BASE_DIR/migration"
+    "$BASE_DIR/docker-compose.yaml"
+    "$BASE_DIR/.env"
+    "$BASE_DIR/n8n-config.json"
+    "$BASE_DIR/shared-services"
+    "$BASE_DIR/chatwoot_langgraph_chatbot/.env"
+    "$BASE_DIR/chatwoot_langgraph_chatbot_orders/.env"
+    "$BASE_DIR/chatwoot_telnyx_voice_integration/.env"
+    "$BASE_DIR/rechago/.env"
+    "$BASE_DIR/rechago/apps/public-api/.env"
+    "$BASE_DIR/rechago/apps/webhook-stripe/.env"
+    "$BASE_DIR/rechago/apps/worker-fulfilment/.env"
   )
 
   local script_path
-  for script_path in /home/frankie/*.sh; do
+  for script_path in "$BASE_DIR"/*.sh; do
     [[ -e "$script_path" ]] || continue
     host_paths+=("$script_path")
   done
@@ -890,7 +899,7 @@ EOF
 main() {
   parse_args "$@"
 
-  init_logging "/home/frankie/migration_logs/pack-$(timestamp).log"
+  init_logging "$BASE_DIR/migration_logs/pack-$(timestamp).log"
   trap 'on_exit $?' EXIT
 
   ensure_root
